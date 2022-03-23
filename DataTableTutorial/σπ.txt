@@ -1,0 +1,82 @@
+﻿USE [TestDB]
+GO
+
+/****** Object:  StoredProcedure [dbo].[spGetDataList]    Script Date: 23/3/2022 10:56:45 πμ ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE PROCEDURE [dbo].[spGetDataList]
+(  
+  @SearchValue NVARCHAR(255) = NULL,  
+  @PageNo INT = 0,
+  @PageSize INT = 10,
+  @SortColumn INT = 0,
+  @SortDirection NVARCHAR(10) = 'ASC'
+)
+AS
+BEGIN
+  SET NOCOUNT ON;
+    
+  DECLARE @TotalCount AS INT = (SELECT COUNT(*) FROM [TestDB].[dbo].[DataTableTutorials])
+ 
+  DECLARE @FirstRec int, @LastRec int
+  SET @FirstRec = @PageNo * @PageSize + 1;
+  SET @LastRec = (@PageNo + 1) * @PageSize;
+ 
+  SET @SearchValue = LTRIM(RTRIM(@SearchValue)) 
+ 
+  ; WITH CTE_Results AS  
+  (  
+    SELECT ROW_NUMBER() OVER (ORDER BY 
+ 
+      CASE WHEN (@SortColumn = 0 AND @SortDirection='asc')  
+            THEN [Id]  
+      END ASC,  
+      CASE WHEN (@SortColumn = 0 AND @SortDirection='desc')  
+          THEN [Id]    
+      END DESC, 
+      CASE WHEN (@SortColumn = 1 AND @SortDirection='asc')  
+            THEN [Name] 
+      END ASC,  
+      CASE WHEN (@SortColumn = 1 AND @SortDirection='desc')  
+            THEN [Name]  
+      END DESC,  
+      CASE WHEN (@SortColumn = 2 AND @SortDirection='asc')  
+            THEN [Status]  
+      END ASC,  
+      CASE WHEN (@SortColumn = 2 AND @SortDirection='desc')  
+            THEN  [Status]    
+      END DESC
+    )
+    AS RowNum,
+    COUNT(*) OVER() as FilteredCount,
+		[Id]
+      ,[Name]
+      ,[Status]
+    FROM [TestDB].[dbo].[DataTableTutorials]
+        
+    WHERE ISNULL(@SearchValue, '') = ''
+    OR [Id] LIKE '%' + @SearchValue + '%'
+    OR [Name] LIKE '%' + @SearchValue + '%'
+    OR [Status] LIKE '%' + @SearchValue + '%'
+  ) 
+ 
+  SELECT
+	[Id]
+      ,[Name]
+      ,[Status]
+    ,FilteredCount,
+    @TotalCount AS TotalCount
+  FROM CTE_Results
+  WHERE RowNum BETWEEN @FirstRec AND @LastRec  
+    
+END
+
+--EXEC [dbo].[spGetDataList] '', 0, 10, 0, 'desc'
+GO
+
+
